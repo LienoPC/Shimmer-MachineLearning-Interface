@@ -88,14 +88,14 @@ public class ShimmerBiosignals
         _shimmer.UICallback += this.StreamCallback;
         await ConnectToWebService();
         // Asynchronously run the streamqueue process
-        Task.Run(SocketProcessQueueAsync);
+        Task.Run(SocketProcessQueueAsync); 
         //_shimmer.Connect();
         await MockStreaming();
 
     }
     
     // Function that actively search for an open WebSocket in the local network
-    // and returns a list of service informations. It then selects the one with the specified Id
+    // and returns a list of service information. It then selects the one with the specified Id
     public async Task<string> DiscoverAndGetServiceUri(string streamId)
     {
         // Query for services with the type _ws._tcp.local.
@@ -112,6 +112,8 @@ public class ShimmerBiosignals
                 if (properties.TryGetValue("stream", out var streamObj))
                 {
                     string streamValue = streamObj.ToString();
+                    Console.WriteLine($"Stream found: {streamValue}");
+
                     if (streamValue.Equals(streamId, StringComparison.OrdinalIgnoreCase))
                     {
                         // Extract the port and path from the advertisement. Then it can be used to connect and stream data trough websocket
@@ -139,8 +141,16 @@ public class ShimmerBiosignals
         string foundUri = await DiscoverAndGetServiceUri(_streamId);
         if (foundUri != "")
         {
-            await _clientWebSocket.ConnectAsync(new Uri(foundUri), CancellationToken.None);
-            Console.WriteLine($"Connected to {foundUri}");
+            try
+            {
+                await _clientWebSocket.ConnectAsync(new Uri(foundUri), CancellationToken.None);
+                Console.WriteLine($"Connected to {foundUri}");
+            }catch(Exception e)
+            {
+                Console.WriteLine("Connection failed: " + e.Message);
+                throw;
+            }
+            
         }
     }
   
@@ -297,6 +307,7 @@ public class ShimmerBiosignals
     {
         while (!_cancellationTokenSource.Token.IsCancellationRequested)
         {
+            
             if (_streamQueue.TryDequeue(out BiosignalsData data))
             {
                 await SocketStreamReceivedData(data);
@@ -309,23 +320,41 @@ public class ShimmerBiosignals
     // Prepare data packet to be sent to the model
     private async Task SocketStreamReceivedData(BiosignalsData dataToSend)
     {
-     
-        // Serialize object to JSON string
-        string json = JsonSerializer.Serialize(dataToSend);
-        byte[] encoded = Encoding.UTF8.GetBytes(json);
-        var buffer = new ArraySegment<byte>(encoded);
-        // Send JSON data over the WebSocket
-        await _clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
-        Console.WriteLine("Sent JSON: " + json);
-        
+
+        if (_clientWebSocket.State == WebSocketState.Open &&
+            _clientWebSocket.State == WebSocketState.CloseReceived)
+        {
+            await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+            Console.WriteLine("WebSocket connection closed.");
+        }
+        try
+        {
+            // Serialize object to JSON string
+            string json = JsonSerializer.Serialize(dataToSend);
+            byte[] encoded = Encoding.UTF8.GetBytes(json);
+            var buffer = new ArraySegment<byte>(encoded);
+            // Send JSON data over the WebSocket
+            await _clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
+            //Console.WriteLine("Sent JSON: " + json);
+        } catch (WebSocketException wse)
+        {
+            Console.WriteLine("WebSocket exception: " + wse.Message);
+            await DisconnectSocket();
+        }
+        catch (TaskCanceledException)
+        {
+            Console.WriteLine("Sending loop canceled.");
+        }
     }
 
     private async Task MockStreaming()
     {
-        for (int i = 0; i < 10; i++)
+        int i = 0;
+        while (true)
         {
             await SocketStreamReceivedData(new BiosignalsData(1 * i, 2 * i, 3 * i));
             await Task.Delay(1000);
+            i++;
         }
     }
     public async Task DisconnectSocket()
@@ -338,10 +367,11 @@ public class ShimmerBiosignals
     }
  
     // Manage application quitting and release all resources
-    void OnApplicationQuit()
+    public async void OnApplicationQuit()
     {
         _shimmer.StopStreaming();
         _shimmer.Disconnect();
+        await DisconnectSocket();
         // Stop the background queue streaming
         _cancellationTokenSource.Cancel(); 
 
