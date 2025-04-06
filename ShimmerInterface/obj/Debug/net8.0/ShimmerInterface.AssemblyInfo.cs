@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ShimmerInterface")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+56256143bd0deb15db8ac6f744a36a49abbde72f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a1c3c5ca5573b7f8bd17b3987c86ce16d55f7908")]
 [assembly: System.Reflection.AssemblyProductAttribute("ShimmerInterface")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ShimmerInterface")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

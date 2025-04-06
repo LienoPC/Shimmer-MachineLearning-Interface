@@ -264,7 +264,7 @@ public class ShimmerBiosignals
 
     private BiosignalsData CreateBioSignalsObject(double ppg, double gsr, int heartRate)
     {
-        BiosignalsData data = new BiosignalsData(heartRate, gsr, ppg);
+        BiosignalsData data = new BiosignalsData(heartRate, gsr, ppg, _samplingRate);
         return data;
     }
     
@@ -352,7 +352,7 @@ public class ShimmerBiosignals
         int i = 0;
         while (true)
         {
-            await SocketStreamReceivedData(new BiosignalsData(1 * i, 2 * i, 3 * i));
+            await SocketStreamReceivedData(new BiosignalsData(1 * i, 2 * i, 3 * i, _samplingRate));
             await Task.Delay(1000);
             i++;
         }
