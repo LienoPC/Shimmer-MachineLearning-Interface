@@ -88,9 +88,10 @@ public class ShimmerBiosignals
         _shimmer.UICallback += this.StreamCallback;
         await ConnectToWebService();
         // Asynchronously run the streamqueue process
+        Console.WriteLine("Connecting to shimmer...");
         Task.Run(SocketProcessQueueAsync); 
-        //_shimmer.Connect();
-        await MockStreaming();
+        _shimmer.Connect();
+        //await MockStreaming();
 
     }
     
@@ -139,6 +140,7 @@ public class ShimmerBiosignals
     public async Task ConnectToWebService()
     {
         string foundUri = await DiscoverAndGetServiceUri(_streamId);
+        Console.Write("URI found: " + foundUri);
         if (foundUri != "")
         {
             try
@@ -166,99 +168,110 @@ public class ShimmerBiosignals
     
     public void StreamCallback(object? sender, EventArgs args)
     {
-        DateTime now = DateTime.Now;
-        CustomEventArgs eventArgs = (CustomEventArgs)args;
-        int indicator = eventArgs.getIndicator();
-        switch (indicator)
+        if (_cancellationTokenSource.Token.IsCancellationRequested)
+            return;
+
+        try
         {
-            case (int)ShimmerBluetooth.ShimmerIdentifier.MSG_IDENTIFIER_STATE_CHANGE:
-                Console.Write(((ShimmerBluetooth)sender).GetDeviceName()+
-                                               " State= "+ ((ShimmerBluetooth)sender).GetStateString()+
-                                               System.Environment.NewLine);
-                //Console.WriteLine("State: ");
-                int state = (int)eventArgs.getObject();
-                if (state == (int)ShimmerBluetooth.SHIMMER_STATE_CONNECTED)
-                {
-                    Debug.WriteLine("Shimmer is Connected");
-                }
-                else if (state == (int)ShimmerBluetooth.SHIMMER_STATE_CONNECTING)
-                {
-                    Debug.WriteLine("Establishing Connection to Shimmer Device");
-                }
-                else if (state == (int)ShimmerBluetooth.SHIMMER_STATE_NONE)
-                {
-                    Console.WriteLine("Shimmer is Disconnected");
-                }
-                else if (state == (int)ShimmerBluetooth.SHIMMER_STATE_STREAMING)
-                {
-                    Debug.WriteLine("Shimmer is Streaming");
-                }
-                break;
-            case (int)ShimmerBluetooth.ShimmerIdentifier.MSG_IDENTIFIER_NOTIFICATION_MESSAGE:
-                /*Console.Write(((ShimmerBluetooth)sender).GetDeviceName()+
-                              " State= "+ ((ShimmerBluetooth)sender).GetStateString()+
-                              System.Environment.NewLine);
-                              */
-                break;
-            case (int)ShimmerBluetooth.ShimmerIdentifier.MSG_IDENTIFIER_DATA_PACKET:
-                /*Console.Write(((ShimmerBluetooth)sender).GetDeviceName()+
-                              " State= "+ ((ShimmerBluetooth)sender).GetStateString()+
-                              System.Environment.NewLine);
-                              */
-                // Receiving data and filtering it
-                ObjectCluster objectCluster = (ObjectCluster)eventArgs.getObject();
-                _indexGSR =
-                    objectCluster.GetIndex(Shimmer3Configuration.SignalNames.GSR,
-                        ShimmerConfiguration.SignalFormats.CAL);
-                _indexPPG =
-                    objectCluster.GetIndex(Shimmer3Configuration.SignalNames.
-                            INTERNAL_ADC_A13,
-                        ShimmerConfiguration.SignalFormats.CAL);
-                _indexTimeStamp =
-                    objectCluster.GetIndex(ShimmerConfiguration.SignalNames.
-                            SYSTEM_TIMESTAMP,
-                        ShimmerConfiguration.SignalFormats.CAL);
-                _firstTime = false;
-                SensorData dataGSR = objectCluster.GetData(_indexGSR);
-                SensorData dataPPG = objectCluster.GetData(_indexPPG);
-                SensorData dataTS = objectCluster.GetData(_indexTimeStamp);
-                //Process PPG signal and calculate heart rate
-                double dataFilteredLP = _filterLPF_PPG.filterData(dataPPG.Data);
-                double dataFilteredHP = _filterHPF_PPG.filterData(dataFilteredLP);
-                HeartRate=(int)_ppGtoHeartRateCalculation.ppgToHrConversion(dataFilteredHP, dataTS.Data);
-                
-                // Storing Heart Rate and timestamp
-                if (HeartRate > 2)
-                {
-                    Hr = (int)HeartRate;
-                    HrList.Add(Hr);
-                    HrTs = now.ToString("yyyyMMddHHmmssfff");
-                    HrListTs.Add(HrTs);
-                }
-                
-                // Storing measured GSR and timestamp
-                Gsr = (double)dataGSR.Data;
-                GsrList.Add(Gsr);
-                GsrTs = now.ToString("yyyyMMddHHmmssfff");
-                GsrListTs.Add(HrTs);
-                
-                // Storing measured PPG and timestamp
-                Ppg = (double)dataPPG.Data;
-                PpgList.Add(Ppg);
-                PpgTs = now.ToString("yyyyMMddHHmmssfff");
-                PpgListTs.Add(HrTs);
-                Ts = (double)dataTS.Data;
-                TsList.Add(Ts);
-                if (_count % _samplingRate == 0) //only display data every second
-                {
-                    _scl = 1000 / dataGSR.Data;
-                }
-                _count++;
-                
-                // After filtering, pass it to the streaming pipe
-                _streamQueue.Enqueue(CreateBioSignalsObject(Ppg, Gsr, HeartRate));
-                break;
+            DateTime now = DateTime.Now;
+            CustomEventArgs eventArgs = (CustomEventArgs)args;
+            int indicator = eventArgs.getIndicator();
+            switch (indicator)
+            {
+                case (int)ShimmerBluetooth.ShimmerIdentifier.MSG_IDENTIFIER_STATE_CHANGE:
+                    Console.Write(((ShimmerBluetooth)sender).GetDeviceName() +
+                                  " State= " + ((ShimmerBluetooth)sender).GetStateString() +
+                                  System.Environment.NewLine);
+                    //Console.WriteLine("State: ");
+                    int state = (int)eventArgs.getObject();
+                    if (state == (int)ShimmerBluetooth.SHIMMER_STATE_CONNECTED)
+                    {
+                        Debug.WriteLine("Shimmer is Connected");
+                    }
+                    else if (state == (int)ShimmerBluetooth.SHIMMER_STATE_CONNECTING)
+                    {
+                        Debug.WriteLine("Establishing Connection to Shimmer Device");
+                    }
+                    else if (state == (int)ShimmerBluetooth.SHIMMER_STATE_NONE)
+                    {
+                        Console.WriteLine("Shimmer is Disconnected");
+                    }
+                    else if (state == (int)ShimmerBluetooth.SHIMMER_STATE_STREAMING)
+                    {
+                        Debug.WriteLine("Shimmer is Streaming");
+                    }
+
+                    break;
+                case (int)ShimmerBluetooth.ShimmerIdentifier.MSG_IDENTIFIER_NOTIFICATION_MESSAGE:
+                    /*Console.Write(((ShimmerBluetooth)sender).GetDeviceName()+
+                                  " State= "+ ((ShimmerBluetooth)sender).GetStateString()+
+                                  System.Environment.NewLine);
+                                  */
+                    break;
+                case (int)ShimmerBluetooth.ShimmerIdentifier.MSG_IDENTIFIER_DATA_PACKET:
+                    /*Console.Write(((ShimmerBluetooth)sender).GetDeviceName()+
+                                  " State= "+ ((ShimmerBluetooth)sender).GetStateString()+
+                                  System.Environment.NewLine);
+                                  */
+                    // Receiving data and filtering it
+                    ObjectCluster objectCluster = (ObjectCluster)eventArgs.getObject();
+                    _indexGSR =
+                        objectCluster.GetIndex(Shimmer3Configuration.SignalNames.GSR,
+                            ShimmerConfiguration.SignalFormats.CAL);
+                    _indexPPG =
+                        objectCluster.GetIndex(Shimmer3Configuration.SignalNames.INTERNAL_ADC_A13,
+                            ShimmerConfiguration.SignalFormats.CAL);
+                    _indexTimeStamp =
+                        objectCluster.GetIndex(ShimmerConfiguration.SignalNames.SYSTEM_TIMESTAMP,
+                            ShimmerConfiguration.SignalFormats.CAL);
+                    _firstTime = false;
+                    SensorData dataGSR = objectCluster.GetData(_indexGSR);
+                    SensorData dataPPG = objectCluster.GetData(_indexPPG);
+                    SensorData dataTS = objectCluster.GetData(_indexTimeStamp);
+                    //Process PPG signal and calculate heart rate
+                    double dataFilteredLP = _filterLPF_PPG.filterData(dataPPG.Data);
+                    double dataFilteredHP = _filterHPF_PPG.filterData(dataFilteredLP);
+                    HeartRate = (int)_ppGtoHeartRateCalculation.ppgToHrConversion(dataFilteredHP, dataTS.Data);
+
+                    // Storing Heart Rate and timestamp
+                    if (HeartRate > 2)
+                    {
+                        Hr = (int)HeartRate;
+                        HrList.Add(Hr);
+                        HrTs = now.ToString("yyyyMMddHHmmssfff");
+                        HrListTs.Add(HrTs);
+                    }
+
+                    // Storing measured GSR and timestamp
+                    Gsr = (double)dataGSR.Data;
+                    GsrList.Add(Gsr);
+                    GsrTs = now.ToString("yyyyMMddHHmmssfff");
+                    GsrListTs.Add(HrTs);
+
+                    // Storing measured PPG and timestamp
+                    Ppg = (double)dataPPG.Data;
+                    PpgList.Add(Ppg);
+                    PpgTs = now.ToString("yyyyMMddHHmmssfff");
+                    PpgListTs.Add(HrTs);
+                    Ts = (double)dataTS.Data;
+                    TsList.Add(Ts);
+                    if (_count % _samplingRate == 0) //only display data every second
+                    {
+                        _scl = 1000 / dataGSR.Data;
+                    }
+
+                    _count++;
+
+                    // After filtering, pass it to the streaming pipe
+                    _streamQueue.Enqueue(CreateBioSignalsObject(Ppg, Gsr, HeartRate));
+                    break;
+            }
         }
+        catch (OperationCanceledException exception)
+        {
+            Console.WriteLine("Shutting down device sensor connection...");
+        }
+        
         _shimmer.StartStreaming();
     }
 
@@ -333,6 +346,7 @@ public class ShimmerBiosignals
             string json = JsonSerializer.Serialize(dataToSend);
             byte[] encoded = Encoding.UTF8.GetBytes(json);
             var buffer = new ArraySegment<byte>(encoded);
+            Console.WriteLine("Sending " + json + " to websocket server");
             // Send JSON data over the WebSocket
             await _clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
             //Console.WriteLine("Sent JSON: " + json);
@@ -347,13 +361,13 @@ public class ShimmerBiosignals
         }
     }
 
-    private async Task MockStreaming()
+    public async Task MockStreaming()
     {
         int i = 0;
         while (true)
         {
             await SocketStreamReceivedData(new BiosignalsData(1 * i, 2 * i, 3 * i, _samplingRate));
-            await Task.Delay(1000);
+            await Task.Delay((int)(1000 / _samplingRate));
             i++;
         }
     }
@@ -369,12 +383,12 @@ public class ShimmerBiosignals
     // Manage application quitting and release all resources
     public async void OnApplicationQuit()
     {
+        _shimmer.UICallback -= StreamCallback;
         _shimmer.StopStreaming();
         _shimmer.Disconnect();
         await DisconnectSocket();
         // Stop the background queue streaming
         _cancellationTokenSource.Cancel(); 
-
     }
 }
 
