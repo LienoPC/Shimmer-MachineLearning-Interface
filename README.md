@@ -1,5 +1,5 @@
 # Shimmer-MachineLearning-Interface
-> A simple .NET console app that reads real‑time data from a Shimmer biosensor.
+A simple .NET console app that reads real‑time data from a Shimmer3 GSR+ biosensor.
 
 ## Prerequisites
 
