@@ -90,8 +90,8 @@ public class ShimmerBiosignals
         // Asynchronously run the streamqueue process
         Console.WriteLine("Connecting to shimmer...");
         Task.Run(SocketProcessQueueAsync); 
-        _shimmer.Connect();
-        //await MockStreaming();
+        //_shimmer.Connect();
+        await MockStreaming();
 
     }
     
@@ -346,7 +346,6 @@ public class ShimmerBiosignals
             string json = JsonSerializer.Serialize(dataToSend);
             byte[] encoded = Encoding.UTF8.GetBytes(json);
             var buffer = new ArraySegment<byte>(encoded);
-            Console.WriteLine("Sending " + json + " to websocket server");
             // Send JSON data over the WebSocket
             await _clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
             //Console.WriteLine("Sent JSON: " + json);

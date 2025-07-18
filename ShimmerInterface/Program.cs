@@ -2,14 +2,34 @@ namespace ShimmerInterface;
 
 public class Program
 {
-    static async Task Main(string[] args)
+    static ShimmerBiosignals shimmer;
+    static CancellationTokenSource cts;
+
+    public static async Task Main(string[] args)
     {
-        CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        ShimmerBiosignals shimmer = new ShimmerBiosignals();
+        cts = new CancellationTokenSource();
+
+        Console.CancelKeyPress += (sender, e) => {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (s,e) => {
+            cts.Cancel();
+        };
+
+        shimmer = new ShimmerBiosignals();
         shimmer.StartReceivingData();
-        Console.WriteLine("Press a key to exit");
-        ConsoleKeyInfo input = Console.ReadKey();
+        Console.WriteLine("Biosensor started. Waiting for shutdown...");
+
+        try
+        {
+            await Task.Delay(Timeout.Infinite, cts.Token);
+        }
+        catch (OperationCanceledException) { }
+
         shimmer.OnApplicationQuit();
+        Console.WriteLine("Shutdown complete.");
     }
 }
 
